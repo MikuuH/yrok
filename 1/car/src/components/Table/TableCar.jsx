@@ -1,4 +1,4 @@
-import * as React from 'react';
+import { useState } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -6,6 +6,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 
 const columns = [
   { field: 'carName', headerName: 'Название машины', width: 150 },
@@ -18,21 +19,38 @@ const columns = [
 ];
 
 export default function TableCar() {
-  const [rows, setRows] = React.useState([]);
-  const [selectedRows, setSelectedRows] = React.useState([]);
-  const [editRow, setEditRow] = React.useState(null);
-  const [open, setOpen] = React.useState(false);
+  const [rows, setRows] = useState([]);
+  const [filteredRows, setFilteredRows] = useState([]);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [editRow, setEditRow] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
 
   React.useEffect(() => {
     const data = localStorage.getItem('cars');
     if (data) {
-      setRows(JSON.parse(data));
+      const parsedRows = JSON.parse(data);
+      setRows(parsedRows);
+      setFilteredRows(parsedRows);
     }
   }, []);
 
+  React.useEffect(() => {
+    // Фильтрация строк на основе диапазона цен
+    const min = parseInt(minPrice, 10) || 0;
+    const max = parseInt(maxPrice, 10) || Infinity;
+    const filtered = rows.filter(row => {
+      const price = parseInt(row.price.replace(/\D/g, ''), 10);
+      return price >= min && price <= max;
+    });
+    setFilteredRows(filtered);
+  }, [minPrice, maxPrice, rows]);
+
   const handleDelete = () => {
-    const newRows = rows.filter(row => !selectedRows.includes(row));
+    const newRows = rows.filter(row => !selectedRows.includes(row.id));
     setRows(newRows);
+    setFilteredRows(newRows);
     localStorage.setItem('cars', JSON.stringify(newRows));
     setSelectedRows([]);
   };
@@ -57,14 +75,34 @@ export default function TableCar() {
   const handleSave = () => {
     const newRows = rows.map(row => row.id === editRow.id ? editRow : row);
     setRows(newRows);
+    setFilteredRows(newRows);
     localStorage.setItem('cars', JSON.stringify(newRows));
     handleEditClose();
   };
 
   return (
     <div style={{ height: 400, width: '100%' }}>
+      <Typography gutterBottom>Ценовой диапазон</Typography>
+      <div style={{ marginBottom: 16, display: 'flex', gap: '16px' }}>
+        <TextField
+          label="Минимальная цена"
+          type="number"
+          value={minPrice}
+          onChange={(e) => setMinPrice(e.target.value)}
+          variant="outlined"
+          fullWidth
+        />
+        <TextField
+          label="Максимальная цена"
+          type="number"
+          value={maxPrice}
+          onChange={(e) => setMaxPrice(e.target.value)}
+          variant="outlined"
+          fullWidth
+        />
+      </div>
       <DataGrid
-        rows={rows}
+        rows={filteredRows}
         columns={columns}
         checkboxSelection
         onRowSelectionModelChange={(newSelection) => {
